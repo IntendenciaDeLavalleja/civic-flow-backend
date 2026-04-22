@@ -119,14 +119,12 @@ class Config:
     )
 
     # CORS – origins loaded exclusively from env vars; no hardcoded fallback.
+    # CORS validates the request *origin*, not the backend path.
+    # Flask-CORS is initialized globally so every endpoint is covered.
     CORS_ORIGINS_RAW = os.environ.get('CORS_ORIGINS')
     _frontend_fallback = (FRONTEND_URL,) if FRONTEND_URL else ()
     CORS_ALLOWED_ORIGINS = list(
         _parse_cors_origins(CORS_ORIGINS_RAW, _frontend_fallback)
-    )
-    CORS_RESOURCE_PATTERNS = (
-        r'/api/*',
-        r'/auth/*',
     )
     CORS_ALLOW_HEADERS = (
         'Authorization',

@@ -13,10 +13,6 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     cors_origins = app.config.get('CORS_ALLOWED_ORIGINS', [])
-    cors_resources = {
-        pattern: {'origins': cors_origins}
-        for pattern in app.config.get('CORS_RESOURCE_PATTERNS', ())
-    }
 
     app.logger.info(
         'Flask environment: %s',
@@ -33,10 +29,13 @@ def create_app(config_class=Config):
             'Cross-origin browser requests will fail.'
         )
 
-    # CORS
+    # CORS – applied globally to the whole app.
+    # Origin validation is the criterion; no path filtering.
+    # This covers /api/*, /auth/*, /units, /areas, /admin/... and any
+    # future endpoint without needing manual registration.
     CORS(
         app,
-        resources=cors_resources,
+        origins=cors_origins,
         supports_credentials=app.config.get('CORS_SUPPORTS_CREDENTIALS', True),
         allow_headers=app.config.get('CORS_ALLOW_HEADERS', ()),
         methods=app.config.get('CORS_METHODS', ()),
