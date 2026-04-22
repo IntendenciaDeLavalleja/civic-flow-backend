@@ -58,9 +58,16 @@ MAIL_USERNAME=noreply@ejemplo.com
 MAIL_PASSWORD=
 APP_NAME=Agil Proyect Management Software - APMS
 FRONTEND_URL=http://localhost:5173
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 WORKS_UPLOAD_DIR=./uploads/works
 ```
+
+Notas de producción:
+
+- `CORS_ORIGINS` se parsea como lista separada por comas.
+- Cada origin se limpia con `strip()`, se remueve slash final y se ignoran vacíos.
+- Si `CORS_ORIGINS` no está definido, Flask usa `FRONTEND_URL` como fallback.
+- Si el frontend usa `PUBLIC_API_BASE_URL`, debe apuntar a la API con el prefijo `/api`.
 
 ### 4. Inicializar base de datos
 
@@ -101,6 +108,7 @@ gunicorn wsgi:app -w 4 -b 0.0.0.0:5000
 | Método | Ruta | Descripción | Rol mínimo |
 |--------|------|-------------|------------|
 | POST | `/api/auth/login` | Login paso 1 (credenciales) | público |
+| POST | `/auth/login` | Alias compatible para proxy/rewrite | público |
 | POST | `/api/auth/verify-2fa` | Login paso 2 (código 2FA) | pending_token |
 | GET | `/api/auth/me` | Perfil propio | user |
 | POST | `/api/auth/logout` | Logout | user |

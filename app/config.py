@@ -1,8 +1,13 @@
 import os
 from datetime import timedelta
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+_BASE_DIR = Path(__file__).resolve().parent.parent
+_DOTENV_PATH = _BASE_DIR / '.env'
+
+# Load backend/.env when present without overriding injected env vars.
+load_dotenv(_DOTENV_PATH, override=False)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CivicFlow – Plataforma de Gestión Pública · IDL
@@ -29,7 +34,35 @@ def _parse_csv(
     return parsed or fallback
 
 
+def _normalize_origin(value: str | None) -> str:
+    if not value:
+        return ''
+    return value.strip().strip('"').strip("'").rstrip('/')
+
+
+def _parse_cors_origins(
+    raw_value: str | None,
+    fallback: tuple[str, ...],
+) -> tuple[str, ...]:
+    candidates = raw_value.split(',') if raw_value else fallback
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for item in candidates:
+        origin = _normalize_origin(item)
+        if not origin:
+            continue
+        key = origin.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(origin)
+
+    return tuple(normalized) or fallback
+
+
 class Config:
+    ENV_NAME = (os.environ.get('FLASK_ENV') or 'production').strip().lower()
     SECRET_KEY = (
         os.environ.get('SECRET_KEY')
         or 'change-me-in-production-please'
@@ -62,7 +95,9 @@ class Config:
 
     # App identity
     APP_NAME = os.environ.get('APP_NAME', 'CivicFlow')
-    FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'http://localhost:5173'
+    FRONTEND_URL = _normalize_origin(
+        os.environ.get('FRONTEND_URL')
+    )
 
     # WTF / CSRF (admin HTML panel)
     WTF_CSRF_SECRET_KEY = os.environ.get('WTF_CSRF_SECRET_KEY') or SECRET_KEY
@@ -70,7 +105,10 @@ class Config:
     # Session security (admin HTML panel uses server-side sessions)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = not _as_bool(os.environ.get('FLASK_DEBUG'), default=False)
+    SESSION_COOKIE_SECURE = not _as_bool(
+        os.environ.get('FLASK_DEBUG'),
+        default=False,
+    )
     PERMANENT_SESSION_LIFETIME = 3600  # 1 hour admin session
 
     # Redis (optional – for rate limiting)
@@ -80,12 +118,30 @@ class Config:
         or REDIS_URL
     )
 
-    # CORS
-    CORS_ALLOWED_ORIGINS = [
-        o.strip() for o in
-        os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
-        if o.strip()
-    ]
+    # CORS – origins loaded exclusively from env vars; no hardcoded fallback.
+    CORS_ORIGINS_RAW = os.environ.get('CORS_ORIGINS')
+    _frontend_fallback = (FRONTEND_URL,) if FRONTEND_URL else ()
+    CORS_ALLOWED_ORIGINS = list(
+        _parse_cors_origins(CORS_ORIGINS_RAW, _frontend_fallback)
+    )
+    CORS_RESOURCE_PATTERNS = (
+        r'/api/*',
+        r'/auth/*',
+    )
+    CORS_ALLOW_HEADERS = (
+        'Authorization',
+        'Content-Type',
+        'X-Requested-With',
+    )
+    CORS_METHODS = (
+        'GET',
+        'POST',
+        'PUT',
+        'PATCH',
+        'DELETE',
+        'OPTIONS',
+    )
+    CORS_SUPPORTS_CREDENTIALS = True
 
     # Works module files
     WORKS_UPLOAD_DIR = (
@@ -126,5 +182,8 @@ class Config:
         os.environ.get('WORKS_MAX_FILE_SIZE')
         or 2 * 1024 * 1024
     )
+
+
+
 
 

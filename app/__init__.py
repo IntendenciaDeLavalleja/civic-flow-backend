@@ -12,11 +12,34 @@ def create_app(config_class=Config):
     app = Flask(__name__, static_folder=_PUBLIC_DIR, static_url_path="/static")
     app.config.from_object(config_class)
 
+    cors_origins = app.config.get('CORS_ALLOWED_ORIGINS', [])
+    cors_resources = {
+        pattern: {'origins': cors_origins}
+        for pattern in app.config.get('CORS_RESOURCE_PATTERNS', ())
+    }
+
+    app.logger.info(
+        'Flask environment: %s',
+        app.config.get('ENV_NAME', 'unknown'),
+    )
+    app.logger.info(
+        'CORS_ORIGINS raw value: %s',
+        app.config.get('CORS_ORIGINS_RAW'),
+    )
+    app.logger.info('CORS enabled origins: %s', cors_origins)
+    if not cors_origins:
+        app.logger.warning(
+            'CORS enabled origins list is empty. '
+            'Cross-origin browser requests will fail.'
+        )
+
     # CORS
     CORS(
         app,
-        resources={r"/api/*": {"origins": app.config.get("CORS_ALLOWED_ORIGINS", [])}},
-        supports_credentials=True,
+        resources=cors_resources,
+        supports_credentials=app.config.get('CORS_SUPPORTS_CREDENTIALS', True),
+        allow_headers=app.config.get('CORS_ALLOW_HEADERS', ()),
+        methods=app.config.get('CORS_METHODS', ()),
     )
 
     # Extensions
@@ -65,8 +88,12 @@ def create_app(config_class=Config):
     from .api import api_bp
     app.register_blueprint(api_bp)
 
+    from .api import auth_public_bp
+    app.register_blueprint(auth_public_bp)
+
     # Exempt the REST API from CSRF (it uses JWT Bearer tokens)
     csrf.exempt(api_bp)
+    csrf.exempt(auth_public_bp)
 
     # Admin HTML panel
     from .admin import admin_bp
@@ -107,7 +134,10 @@ def create_app(config_class=Config):
         return render_template("errors/not_found.html"), 404
 
     def _is_api_request() -> bool:
-        return request.path.startswith("/api/")
+        return (
+            request.path.startswith('/api/')
+            or request.path.startswith('/auth/')
+        )
 
     @app.errorhandler(404)
     def not_found(_error):

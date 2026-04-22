@@ -16,7 +16,7 @@ from flask_jwt_extended import (
     get_jwt,
 )
 
-from . import api_bp
+from . import api_bp, auth_public_bp
 from ..extensions import db
 from ..models import User, TwoFactorCode, ActivityLog
 from ..services.email_service import send_2fa_email
@@ -56,7 +56,8 @@ def _ok(data: dict, code: int = 200):
 # ─── routes ───────────────────────────────────────────────────────────────────
 
 
-@api_bp.route("/auth/login", methods=["POST"])
+@auth_public_bp.route('/auth/login', methods=['POST'], strict_slashes=False)
+@api_bp.route('/auth/login', methods=['POST'], strict_slashes=False)
 def login():
     """Step 1 – validate credentials, send 2FA code."""
     body = request.get_json(silent=True) or {}
@@ -97,7 +98,10 @@ def login():
     return _ok({"requires_2fa": True, "pending_token": pending_token})
 
 
-@api_bp.route("/auth/verify-2fa", methods=["POST"])
+@auth_public_bp.route(
+    '/auth/verify-2fa', methods=['POST'], strict_slashes=False
+)
+@api_bp.route('/auth/verify-2fa', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def verify_2fa():
     """Step 2 – verify 2FA code, issue full access token."""
@@ -143,7 +147,8 @@ def verify_2fa():
     return _ok({"access_token": access_token, "user": user.to_dict()})
 
 
-@api_bp.route("/auth/me", methods=["GET"])
+@auth_public_bp.route('/auth/me', methods=['GET'], strict_slashes=False)
+@api_bp.route('/auth/me', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def me():
     """Return the authenticated user's profile."""
@@ -156,7 +161,8 @@ def me():
     return _ok({"user": user.to_dict()})
 
 
-@api_bp.route("/auth/logout", methods=["POST"])
+@auth_public_bp.route('/auth/logout', methods=['POST'], strict_slashes=False)
+@api_bp.route('/auth/logout', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def logout():
     """Client discards token; we just log it."""
@@ -168,7 +174,10 @@ def logout():
     return _ok({"message": "Sesión cerrada."})
 
 
-@api_bp.route("/auth/change-password", methods=["PUT"])
+@auth_public_bp.route(
+    '/auth/change-password', methods=['PUT'], strict_slashes=False
+)
+@api_bp.route('/auth/change-password', methods=['PUT'], strict_slashes=False)
 @jwt_required()
 def change_password():
     """Allow any authenticated user to change their own password."""
