@@ -32,7 +32,7 @@ backend/
 ```bash
 python -m venv venv
 # Windows
-.\venv\Scripts\activate
+venv\Scripts\Activate.ps1
 # Linux/Mac
 source venv/bin/activate
 ```
@@ -198,7 +198,7 @@ Si actualizás desde una versión anterior, ejecutá siempre `flask db upgrade` 
 ### 5. Correr en modo desarrollo
 Activar entorno:
 ```bash
-venv\Scripts\activate
+venv\Scripts\Activate.ps1
 ```
 
 ```bash

@@ -120,13 +120,19 @@ def create_app(config_class=Config):
     # -----------------------------------------------------------------------
     @app.route("/favicon.svg")
     def favicon_svg():
-        return send_from_directory(_PUBLIC_DIR, "favicon.svg", mimetype="image/svg+xml")
+        return send_from_directory(
+            _PUBLIC_DIR,
+            "favicon.svg",
+            mimetype="image/svg+xml",
+        )
 
     @app.route("/favicon.ico")
     def favicon_ico():
-        if os.path.exists(os.path.join(_PUBLIC_DIR, "favicon.ico")):
-            return send_from_directory(_PUBLIC_DIR, "favicon.ico", mimetype="image/x-icon")
-        return send_from_directory(_PUBLIC_DIR, "favicon.svg", mimetype="image/svg+xml")
+        return send_from_directory(
+            _PUBLIC_DIR,
+            "favicon.svg",
+            mimetype="image/svg+xml",
+        )
 
     @app.route("/")
     def index():
