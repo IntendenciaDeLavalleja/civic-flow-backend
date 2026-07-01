@@ -30,6 +30,11 @@ class CreateUserForm(FlaskForm):
 
 class EditUserForm(FlaskForm):
     name = StringField("Nombre", validators=[DataRequired(), Length(max=100)])
+    email = EmailField("Correo", validators=[DataRequired(), Email(), Length(max=150)])
+    password = PasswordField(
+        "Nueva Contraseña",
+        validators=[Optional(), Length(min=8, max=128)],
+    )
     role = SelectField(
         "Rol",
         choices=[("user", "Usuario"), ("admin", "Administrador"), ("super_admin", "Super Admin")],

@@ -11,8 +11,9 @@ Protected routes (login_required + admin/super_admin role):
   GET      /admin/              → /admin/dashboard
   GET      /admin/dashboard     – KPI cards + recent activity
   GET/POST /admin/users         – list + create user
-  GET/POST /admin/users/<id>/edit   – edit user
+  GET/POST /admin/users/<id>/edit   – edit user (name, email, password, role, unit)
   POST     /admin/users/<id>/toggle  – toggle is_active
+  POST     /admin/users/<id>/delete  – permanently delete user
   GET/POST /admin/units         – list + create unit
   GET/POST /admin/units/<id>/edit    – edit unit
   GET      /admin/logs          – activity log (super_admin only)
@@ -311,18 +312,35 @@ def edit_user(user_id: int):
     form.unit_id.choices = _unit_choices()
 
     if form.validate_on_submit():
-        # Super admin cannot be demoted by a non-super-admin
+        # Super admin cannot be demoted/edited by a non-super-admin
         if user.is_super_admin and not current_user.is_super_admin:
             flash("No puedes editar un super administrador.", "error")
             return redirect(url_for("admin.users"))
 
+        new_email = form.email.data.strip().lower()
+        existing = User.query.filter_by(email=new_email).first()
+        if existing and existing.id != user.id:
+            flash("Ya existe otro usuario con ese correo.", "error")
+            return render_template("edit_user.html", form=form, edit_user=user)
+
+        old_email = user.email
         user.name = form.name.data.strip()
+        user.email = new_email
         user.role = form.role.data
         user.unit_id = form.unit_id.data if form.unit_id.data else None
         if user.unit_id == 0:
             user.unit_id = None
 
-        _log_admin("edit_user", f"user_id={user.id} name={user.name} role={user.role}")
+        password_changed = bool(form.password.data)
+        if password_changed:
+            user.set_password(form.password.data)
+
+        details = f"user_id={user.id} name={user.name} role={user.role}"
+        if old_email != new_email:
+            details += f" email={old_email}->{new_email}"
+        if password_changed:
+            details += " password_reset=1"
+        _log_admin("edit_user", details)
         db.session.commit()
         flash(f"Usuario «{user.name}» actualizado.", "success")
         return redirect(url_for("admin.users"))
@@ -332,6 +350,9 @@ def edit_user(user_id: int):
         form.unit_id.data = user.unit_id
     else:
         form.unit_id.data = 0
+    if request.method == "GET":
+        form.email.data = user.email
+        form.password.data = ""
 
     return render_template("edit_user.html", form=form, edit_user=user)
 
@@ -355,6 +376,27 @@ def toggle_user(user_id: int):
     db.session.commit()
     state = "activado" if user.is_active else "desactivado"
     flash(f"Usuario «{user.name}» {state}.", "success")
+    return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@_require_admin_role
+def delete_user(user_id: int):
+    user: User = User.query.get_or_404(user_id)
+
+    if user.id == current_user.id:
+        flash("No puedes eliminar tu propia cuenta.", "error")
+        return redirect(url_for("admin.users"))
+    if user.is_super_admin and not current_user.is_super_admin:
+        flash("No puedes eliminar a un super administrador.", "error")
+        return redirect(url_for("admin.users"))
+
+    name, email = user.name, user.email
+    _log_admin("delete_user", f"user_id={user.id} name={name} email={email}")
+    db.session.delete(user)
+    db.session.commit()
+    flash(f"Usuario «{name}» eliminado permanentemente.", "success")
     return redirect(url_for("admin.users"))
 
 
